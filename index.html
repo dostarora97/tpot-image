@@ -42,9 +42,12 @@
             padding: 5px;
             z-index: 1000;
             max-width: 300px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .tag-text p {
+            margin: 0;
+            white-space: normal;
         }
         #selectionBox {
             position: absolute;
@@ -83,6 +86,8 @@
             color: blue;
             text-decoration: underline;
             cursor: pointer;
+            display: block;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -225,8 +230,10 @@
             if (tagDialog.returnValue === 'confirm' && tagText) {
                 createTag(tagText);
             }
-            imageContainer.removeChild(currentSelectionBox);
-            currentSelectionBox = null;
+            if (currentSelectionBox) {
+                imageContainer.removeChild(currentSelectionBox);
+                currentSelectionBox = null;
+            }
             tagTextInput.value = '';
         });
 
@@ -241,13 +248,23 @@
             const textElement = document.createElement('div');
             textElement.className = 'tag-text';
             
-            const truncatedText = tagText.length > 50 ? tagText.slice(0, 50) + '...' : tagText;
-            textElement.textContent = truncatedText;
+            // Convert Markdown to HTML
+            const htmlContent = converter.makeHtml(tagText);
+            textElement.innerHTML = htmlContent;
 
-            if (tagText.length > 50) {
+            // Truncate the displayed text
+            const displayText = textElement.textContent;
+            const truncatedText = displayText.length > 100 ? displayText.slice(0, 100) + '...' : displayText;
+            
+            const previewElement = document.createElement('p');
+            previewElement.textContent = truncatedText;
+            textElement.innerHTML = '';
+            textElement.appendChild(previewElement);
+
+            if (displayText.length > 100) {
                 const moreLink = document.createElement('span');
                 moreLink.className = 'more-link';
-                moreLink.textContent = ' More';
+                moreLink.textContent = 'More';
                 moreLink.addEventListener('click', (e) => {
                     e.stopPropagation();
                     showFullContent(tagText);
