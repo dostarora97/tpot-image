@@ -34,20 +34,18 @@
             border: 2px solid red;
             cursor: pointer;
         }
-        .tag-text {
+        .tag-preview {
             display: none;
             position: absolute;
             background-color: white;
             border: 1px solid black;
             padding: 5px;
             z-index: 1000;
-            max-width: 300px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        .tag-text p {
-            margin: 0;
-            white-space: normal;
+            max-width: 200px;
+            max-height: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         #selectionBox {
             position: absolute;
@@ -82,12 +80,13 @@
             font-size: 16px;
             cursor: pointer;
         }
-        .more-link {
-            color: blue;
-            text-decoration: underline;
-            cursor: pointer;
-            display: block;
-            margin-top: 5px;
+        #contentDialog {
+            width: 90%;
+            max-width: 800px;
+        }
+        #contentDialog .content {
+            max-height: 70vh;
+            overflow-y: auto;
         }
     </style>
 </head>
@@ -101,8 +100,8 @@
             <li>Once the image is displayed, click (or touch) and drag to select an area on the image.</li>
             <li>Release to open a dialog where you can enter Markdown text for the selected area.</li>
             <li>Click "Confirm" to add the tag or "Cancel" to abort.</li>
-            <li>Hover over (or tap) the red rectangles to view the associated text.</li>
-            <li>For longer text, click "More" to view the full content.</li>
+            <li>Hover over the red rectangles to view a preview of the text.</li>
+            <li>Click on a tag to view the full rendered Markdown content.</li>
         </ol>
     </div>
 
@@ -120,10 +119,16 @@
         </form>
     </dialog>
 
+    <dialog id="contentDialog">
+        <div class="content"></div>
+        <button onclick="this.parentElement.close()">Close</button>
+    </dialog>
+
     <script>
         const imageUpload = document.getElementById('imageUpload');
         const imageContainer = document.getElementById('imageContainer');
         const tagDialog = document.getElementById('tagDialog');
+        const contentDialog = document.getElementById('contentDialog');
         const tagTextInput = document.getElementById('tagText');
         let uploadedImage;
         let isDrawing = false;
@@ -143,13 +148,10 @@
                 uploadedImage.draggable = false;
                 imageContainer.appendChild(uploadedImage);
 
-                // Mouse events
                 imageContainer.addEventListener('mousedown', startDrawing);
                 imageContainer.addEventListener('mousemove', draw);
                 imageContainer.addEventListener('mouseup', endDrawing);
                 imageContainer.addEventListener('mouseleave', endDrawing);
-
-                // Touch events
                 imageContainer.addEventListener('touchstart', handleTouchStart);
                 imageContainer.addEventListener('touchmove', handleTouchMove);
                 imageContainer.addEventListener('touchend', handleTouchEnd);
@@ -245,73 +247,32 @@
             tag.style.width = currentSelectionBox.style.width;
             tag.style.height = currentSelectionBox.style.height;
 
-            const textElement = document.createElement('div');
-            textElement.className = 'tag-text';
-            
-            // Convert Markdown to HTML
-            const htmlContent = converter.makeHtml(tagText);
-            
-            // Create a wrapper for the full content
-            const fullContentWrapper = document.createElement('div');
-            fullContentWrapper.innerHTML = htmlContent;
-            fullContentWrapper.style.display = 'none';
-            textElement.appendChild(fullContentWrapper);
+            const preview = document.createElement('div');
+            preview.className = 'tag-preview';
+            preview.textContent = tagText.length > 50 ? tagText.slice(0, 50) + '...' : tagText;
 
-            // Create a preview element
-            const previewElement = document.createElement('p');
-            const displayText = fullContentWrapper.textContent;
-            const truncatedText = displayText.length > 100 ? displayText.slice(0, 100) + '...' : displayText;
-            previewElement.textContent = truncatedText;
-            textElement.appendChild(previewElement);
+            tag.appendChild(preview);
 
-            if (displayText.length > 100) {
-                const moreLink = document.createElement('span');
-                moreLink.className = 'more-link';
-                moreLink.textContent = 'More';
-                moreLink.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showFullContent(tagText);
-                });
-                textElement.appendChild(moreLink);
-            }
+            tag.addEventListener('mouseenter', () => {
+                preview.style.display = 'block';
+            });
 
-            tag.appendChild(textElement);
+            tag.addEventListener('mouseleave', () => {
+                preview.style.display = 'none';
+            });
 
-            function toggleTagText() {
-                if (textElement.style.display === 'none') {
-                    textElement.style.display = 'block';
-                    fullContentWrapper.style.display = 'none';
-                    previewElement.style.display = 'block';
-                } else {
-                    textElement.style.display = 'none';
-                }
-            }
-
-            tag.addEventListener('mouseenter', toggleTagText);
-            tag.addEventListener('mouseleave', toggleTagText);
-            tag.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                toggleTagText();
+            tag.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showFullContent(tagText);
             });
 
             imageContainer.appendChild(tag);
         }
 
         function showFullContent(content) {
-            tagTextInput.value = content;
-            tagDialog.showModal();
-
-            const confirmButton = tagDialog.querySelector('button[value="confirm"]');
-            confirmButton.textContent = 'Close';
-            
-            const tempCloseHandler = function(e) {
-                e.preventDefault();
-                tagDialog.close();
-                confirmButton.textContent = 'Confirm';
-                tagDialog.removeEventListener('submit', tempCloseHandler);
-            };
-
-            tagDialog.addEventListener('submit', tempCloseHandler);
+            const htmlContent = converter.makeHtml(content);
+            contentDialog.querySelector('.content').innerHTML = htmlContent;
+            contentDialog.showModal();
         }
     </script>
 </body>
