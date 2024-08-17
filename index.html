@@ -250,15 +250,18 @@
             
             // Convert Markdown to HTML
             const htmlContent = converter.makeHtml(tagText);
-            textElement.innerHTML = htmlContent;
-
-            // Truncate the displayed text
-            const displayText = textElement.textContent;
-            const truncatedText = displayText.length > 100 ? displayText.slice(0, 100) + '...' : displayText;
             
+            // Create a wrapper for the full content
+            const fullContentWrapper = document.createElement('div');
+            fullContentWrapper.innerHTML = htmlContent;
+            fullContentWrapper.style.display = 'none';
+            textElement.appendChild(fullContentWrapper);
+
+            // Create a preview element
             const previewElement = document.createElement('p');
+            const displayText = fullContentWrapper.textContent;
+            const truncatedText = displayText.length > 100 ? displayText.slice(0, 100) + '...' : displayText;
             previewElement.textContent = truncatedText;
-            textElement.innerHTML = '';
             textElement.appendChild(previewElement);
 
             if (displayText.length > 100) {
@@ -274,23 +277,21 @@
 
             tag.appendChild(textElement);
 
-            tag.addEventListener('mouseenter', () => {
-                textElement.style.display = 'block';
-            });
+            function toggleTagText() {
+                if (textElement.style.display === 'none') {
+                    textElement.style.display = 'block';
+                    fullContentWrapper.style.display = 'none';
+                    previewElement.style.display = 'block';
+                } else {
+                    textElement.style.display = 'none';
+                }
+            }
 
-            tag.addEventListener('mouseleave', () => {
-                textElement.style.display = 'none';
-            });
-
+            tag.addEventListener('mouseenter', toggleTagText);
+            tag.addEventListener('mouseleave', toggleTagText);
             tag.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                textElement.style.display = 'block';
-            });
-
-            tag.addEventListener('touchend', () => {
-                setTimeout(() => {
-                    textElement.style.display = 'none';
-                }, 1000);
+                toggleTagText();
             });
 
             imageContainer.appendChild(tag);
