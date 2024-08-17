@@ -12,9 +12,16 @@
             margin: 0 auto;
             padding: 20px;
         }
+        #instructions {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
         #imageContainer {
             position: relative;
             margin-top: 20px;
+            touch-action: none;
         }
         #uploadedImage {
             max-width: 100%;
@@ -81,6 +88,19 @@
 </head>
 <body>
     <h1>Interactive Image Tagger</h1>
+    
+    <div id="instructions">
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Upload an image using the "Choose File" button below.</li>
+            <li>Once the image is displayed, click (or touch) and drag to select an area on the image.</li>
+            <li>Release to open a dialog where you can enter Markdown text for the selected area.</li>
+            <li>Click "Confirm" to add the tag or "Cancel" to abort.</li>
+            <li>Hover over (or tap) the red rectangles to view the associated text.</li>
+            <li>For longer text, click "More" to view the full content.</li>
+        </ol>
+    </div>
+
     <input type="file" id="imageUpload" accept="image/*">
     <div id="imageContainer"></div>
 
@@ -118,10 +138,16 @@
                 uploadedImage.draggable = false;
                 imageContainer.appendChild(uploadedImage);
 
+                // Mouse events
                 imageContainer.addEventListener('mousedown', startDrawing);
                 imageContainer.addEventListener('mousemove', draw);
                 imageContainer.addEventListener('mouseup', endDrawing);
                 imageContainer.addEventListener('mouseleave', endDrawing);
+
+                // Touch events
+                imageContainer.addEventListener('touchstart', handleTouchStart);
+                imageContainer.addEventListener('touchmove', handleTouchMove);
+                imageContainer.addEventListener('touchend', handleTouchEnd);
             }
 
             reader.readAsDataURL(file);
@@ -133,19 +159,42 @@
             const rect = uploadedImage.getBoundingClientRect();
             startX = e.clientX - rect.left;
             startY = e.clientY - rect.top;
+            createSelectionBox(startX, startY);
+        }
 
+        function handleTouchStart(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const rect = uploadedImage.getBoundingClientRect();
+            const touch = e.touches[0];
+            startX = touch.clientX - rect.left;
+            startY = touch.clientY - rect.top;
+            createSelectionBox(startX, startY);
+        }
+
+        function createSelectionBox(x, y) {
             const selectionBox = document.createElement('div');
             selectionBox.id = 'selectionBox';
-            selectionBox.style.left = `${startX}px`;
-            selectionBox.style.top = `${startY}px`;
+            selectionBox.style.left = `${x}px`;
+            selectionBox.style.top = `${y}px`;
             imageContainer.appendChild(selectionBox);
         }
 
         function draw(e) {
             if (!isDrawing) return;
+            updateSelectionBox(e.clientX, e.clientY);
+        }
+
+        function handleTouchMove(e) {
+            if (!isDrawing) return;
+            const touch = e.touches[0];
+            updateSelectionBox(touch.clientX, touch.clientY);
+        }
+
+        function updateSelectionBox(clientX, clientY) {
             const rect = uploadedImage.getBoundingClientRect();
-            const currentX = e.clientX - rect.left;
-            const currentY = e.clientY - rect.top;
+            const currentX = clientX - rect.left;
+            const currentY = clientY - rect.top;
 
             const selectionBox = document.getElementById('selectionBox');
             selectionBox.style.width = `${Math.abs(currentX - startX)}px`;
@@ -154,7 +203,7 @@
             selectionBox.style.top = `${Math.min(startY, currentY)}px`;
         }
 
-        function endDrawing(e) {
+        function endDrawing() {
             if (!isDrawing) return;
             isDrawing = false;
 
@@ -165,6 +214,10 @@
             } else {
                 imageContainer.removeChild(selectionBox);
             }
+        }
+
+        function handleTouchEnd() {
+            endDrawing();
         }
 
         tagDialog.addEventListener('close', function() {
@@ -210,6 +263,17 @@
 
             tag.addEventListener('mouseleave', () => {
                 textElement.style.display = 'none';
+            });
+
+            tag.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                textElement.style.display = 'block';
+            });
+
+            tag.addEventListener('touchend', () => {
+                setTimeout(() => {
+                    textElement.style.display = 'none';
+                }, 1000);
             });
 
             imageContainer.appendChild(tag);
