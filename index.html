@@ -34,18 +34,17 @@
             border: 2px solid red;
             cursor: pointer;
         }
-        .tag-preview {
+        .tag-text {
             display: none;
             position: absolute;
             background-color: white;
             border: 1px solid black;
             padding: 5px;
             z-index: 1000;
-            max-width: 200px;
-            max-height: 100px;
+            max-width: 300px;
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
         }
         #selectionBox {
             position: absolute;
@@ -80,13 +79,10 @@
             font-size: 16px;
             cursor: pointer;
         }
-        #contentDialog {
-            width: 90%;
-            max-width: 800px;
-        }
-        #contentDialog .content {
-            max-height: 70vh;
-            overflow-y: auto;
+        .more-link {
+            color: blue;
+            text-decoration: underline;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -100,8 +96,8 @@
             <li>Once the image is displayed, click (or touch) and drag to select an area on the image.</li>
             <li>Release to open a dialog where you can enter Markdown text for the selected area.</li>
             <li>Click "Confirm" to add the tag or "Cancel" to abort.</li>
-            <li>Hover over the red rectangles to view a preview of the text.</li>
-            <li>Click on a tag to view the full rendered Markdown content.</li>
+            <li>Hover over (or tap) the red rectangles to view the associated text.</li>
+            <li>For longer text, click "More" to view the full content.</li>
         </ol>
     </div>
 
@@ -119,16 +115,10 @@
         </form>
     </dialog>
 
-    <dialog id="contentDialog">
-        <div class="content"></div>
-        <button onclick="this.parentElement.close()">Close</button>
-    </dialog>
-
     <script>
         const imageUpload = document.getElementById('imageUpload');
         const imageContainer = document.getElementById('imageContainer');
         const tagDialog = document.getElementById('tagDialog');
-        const contentDialog = document.getElementById('contentDialog');
         const tagTextInput = document.getElementById('tagText');
         let uploadedImage;
         let isDrawing = false;
@@ -148,10 +138,13 @@
                 uploadedImage.draggable = false;
                 imageContainer.appendChild(uploadedImage);
 
+                // Mouse events
                 imageContainer.addEventListener('mousedown', startDrawing);
                 imageContainer.addEventListener('mousemove', draw);
                 imageContainer.addEventListener('mouseup', endDrawing);
                 imageContainer.addEventListener('mouseleave', endDrawing);
+
+                // Touch events
                 imageContainer.addEventListener('touchstart', handleTouchStart);
                 imageContainer.addEventListener('touchmove', handleTouchMove);
                 imageContainer.addEventListener('touchend', handleTouchEnd);
@@ -232,10 +225,8 @@
             if (tagDialog.returnValue === 'confirm' && tagText) {
                 createTag(tagText);
             }
-            if (currentSelectionBox) {
-                imageContainer.removeChild(currentSelectionBox);
-                currentSelectionBox = null;
-            }
+            imageContainer.removeChild(currentSelectionBox);
+            currentSelectionBox = null;
             tagTextInput.value = '';
         });
 
@@ -247,32 +238,62 @@
             tag.style.width = currentSelectionBox.style.width;
             tag.style.height = currentSelectionBox.style.height;
 
-            const preview = document.createElement('div');
-            preview.className = 'tag-preview';
-            preview.textContent = tagText.length > 50 ? tagText.slice(0, 50) + '...' : tagText;
+            const textElement = document.createElement('div');
+            textElement.className = 'tag-text';
+            
+            const truncatedText = tagText.length > 50 ? tagText.slice(0, 50) + '...' : tagText;
+            textElement.textContent = truncatedText;
 
-            tag.appendChild(preview);
+            if (tagText.length > 50) {
+                const moreLink = document.createElement('span');
+                moreLink.className = 'more-link';
+                moreLink.textContent = ' More';
+                moreLink.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showFullContent(tagText);
+                });
+                textElement.appendChild(moreLink);
+            }
+
+            tag.appendChild(textElement);
 
             tag.addEventListener('mouseenter', () => {
-                preview.style.display = 'block';
+                textElement.style.display = 'block';
             });
 
             tag.addEventListener('mouseleave', () => {
-                preview.style.display = 'none';
+                textElement.style.display = 'none';
             });
 
-            tag.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showFullContent(tagText);
+            tag.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                textElement.style.display = 'block';
+            });
+
+            tag.addEventListener('touchend', () => {
+                setTimeout(() => {
+                    textElement.style.display = 'none';
+                }, 1000);
             });
 
             imageContainer.appendChild(tag);
         }
 
         function showFullContent(content) {
-            const htmlContent = converter.makeHtml(content);
-            contentDialog.querySelector('.content').innerHTML = htmlContent;
-            contentDialog.showModal();
+            tagTextInput.value = content;
+            tagDialog.showModal();
+
+            const confirmButton = tagDialog.querySelector('button[value="confirm"]');
+            confirmButton.textContent = 'Close';
+            
+            const tempCloseHandler = function(e) {
+                e.preventDefault();
+                tagDialog.close();
+                confirmButton.textContent = 'Confirm';
+                tagDialog.removeEventListener('submit', tempCloseHandler);
+            };
+
+            tagDialog.addEventListener('submit', tempCloseHandler);
         }
     </script>
 </body>
